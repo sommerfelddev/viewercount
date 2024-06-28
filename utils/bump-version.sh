@@ -17,7 +17,7 @@ git commit -m "Bump to v$version"
 git tag -a v"$version" -m "$(utils/generate_changelog.sh)"
 
 git push
-git push mandibles
+git push gh
 cargo publish
 
 cd "$cwd"
