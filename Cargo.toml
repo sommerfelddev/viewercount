@@ -1,0 +1,26 @@
+[package]
+name = "viewercount"
+version = "0.1.0"
+edition = "2021"
+authors = ["sommerfeld <sommerfeld@sommerfeld.dev>"]
+description = "Updates nostr Live Events with the number of HLS connections"
+repository = "https://github.com/sommerfelddev/viewercount"
+license = "MIT"
+keywords = ["nostr", "livestream", "daemon"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1.0.86"
+clap = { version = "4.5.7", features = ["derive"] }
+dirs = "5.0.1"
+futures = "0.3.30"
+human-panic = "2.0.0"
+log = "0.4.21"
+nostr-relay-pool = "0.32.0"
+nostr-sdk = { version = "0.32.0", default-features = false }
+nostr-signer = { version = "0.32.0", default-features = false, features = ["nip46"] }
+pretty_env_logger = "0.5.0"
+procfs = { version = "0.16.0", default-features = false }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.118"
+tokio = { version = "1.38.0", features = ["rt-multi-thread", "signal", "time"] }

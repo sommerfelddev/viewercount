@@ -1,0 +1,62 @@
+name: Release
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - v*
+jobs:
+  release:
+    strategy:
+      matrix:
+        platform:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: viewercount
+            name: viewercount-${{ github.ref_name }}-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: viewercount
+            name: viewercount-${{ github.ref_name }}-linux-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: viewercount.exe
+            name: viewercount-${{ github.ref_name }}-windows-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: viewercount
+            name: viewercount-${{ github.ref_name }}-darwin-x86_64
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - name: Build binary
+      uses: houseabsolute/actions-rust-cross@v0
+      with:
+        target: ${{ matrix.platform.target }}
+        args: "--locked --release"
+        strip: true
+    - name: Package
+      shell: bash
+      run: |
+        mkdir ${{ matrix.platform.name }}
+        cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} ${{ matrix.platform.name }}
+        cp LICENSE.txt ${{ matrix.platform.name }}
+        cp README.md ${{ matrix.platform.name }}
+        if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]
+        then
+          7z a ${{ matrix.platform.name }}.zip ${{ matrix.platform.name }}
+        else
+          tar czvf ${{ matrix.platform.name }}.tar.gz ${{ matrix.platform.name }}
+        fi
+    - name: Generate Changelog
+      run: utils/generate_changelog.sh > ${{ github.workspace }}-CHANGELOG.md
+    - name: Publish
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+          body_path: ${{ github.workspace }}-CHANGELOG.md
+          fail_on_unmatched_files: true
+          files: viewercount-*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
