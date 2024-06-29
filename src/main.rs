@@ -294,7 +294,7 @@ fn get_https_connected_ips() -> Result<Vec<IpAddr>> {
         .chain(procfs::net::tcp6()?)
         .filter_map(|t| {
             if t.local_address.port() == 443 && t.state == TcpState::Established {
-                return Some(t.local_address.ip());
+                return Some(t.remote_address.ip());
             }
             None
         })
