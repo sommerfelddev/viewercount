@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{command, Parser};
 use futures::future::join_all;
 use human_panic::setup_panic;
@@ -23,14 +23,13 @@ use nostr_sdk::{
     Client, Event, EventBuilder, Filter, Keys, Kind, Tag, TagKind, TagStandard, ToBech32,
 };
 use nostr_signer::{Nip46Signer, NostrSigner};
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use procfs::net::TcpState;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_string};
-use tokio::{
-    signal::unix::{signal, SignalKind},
-    spawn,
-    time::sleep,
-};
+#[cfg(unix)]
+use tokio::signal::unix::{signal, SignalKind};
+use tokio::{spawn, time::sleep};
 
 const DEFAULT_WATCH_INTERVAL_SEC: u64 = 60;
 const NIP46_TIMEOUT_SEC: u64 = 60;
@@ -276,9 +275,13 @@ async fn create_filters(naddrs: &[String], client: &Client) -> Result<Vec<Filter
 }
 
 async fn get_count() -> Result<u64> {
-    get_count_from_procfs().await
+    if cfg!(any(target_os = "linux", target_os = "android")) {
+        return get_count_from_procfs().await;
+    }
+    bail!("unsupported OS")
 }
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
 async fn get_count_from_procfs() -> Result<u64> {
     let mut tcp = get_https_connected_ips()?;
     sleep(Duration::from_secs(TCP_CHECK_DELAY_SEC)).await;
@@ -288,6 +291,7 @@ async fn get_count_from_procfs() -> Result<u64> {
     Ok(tcp.len() as u64)
 }
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn get_https_connected_ips() -> Result<Vec<IpAddr>> {
     Ok(procfs::net::tcp()?
         .into_iter()
