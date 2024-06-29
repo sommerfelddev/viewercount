@@ -18,14 +18,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             bin: viewercount
             name: viewercount-${{ github.ref_name }}-linux-aarch64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bin: viewercount.exe
-            name: viewercount-${{ github.ref_name }}-windows-x86_64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            bin: viewercount
-            name: viewercount-${{ github.ref_name }}-darwin-x86_64
     runs-on: ${{ matrix.platform.os }}
     steps:
     - uses: actions/checkout@v4
@@ -43,12 +35,7 @@ jobs:
         cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} ${{ matrix.platform.name }}
         cp LICENSE.txt ${{ matrix.platform.name }}
         cp README.md ${{ matrix.platform.name }}
-        if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]
-        then
-          7z a ${{ matrix.platform.name }}.zip ${{ matrix.platform.name }}
-        else
-          tar czvf ${{ matrix.platform.name }}.tar.gz ${{ matrix.platform.name }}
-        fi
+        tar czvf ${{ matrix.platform.name }}.tar.gz ${{ matrix.platform.name }}
     - name: Generate Changelog
       run: utils/generate_changelog.sh > ${{ github.workspace }}-CHANGELOG.md
     - name: Publish
