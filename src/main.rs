@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{remove_file, File},
     io::{stdin, BufReader, Write},
     net::IpAddr,
@@ -307,33 +308,42 @@ fn get_https_connected_ips() -> Result<Vec<IpAddr>> {
 
 async fn update_count(client: &Client, filters: &[Filter], count: u64) -> Result<()> {
     let events = get_relevant_events(client, filters).await?;
-
     if events.is_empty() {
-        warn!("no live events")
-    } else {
-        let new_events = get_updated_events(events, client, count).await;
-
-        if new_events.is_empty() {
-            warn!("no events to update")
-        } else {
-            info!("broadcasting {} updated events", new_events.len());
-            client
-                .batch_event(new_events, RelaySendOptions::new())
-                .await?;
-            info!("updated events broadcasted");
-        }
+        warn!("no live events");
+        return Ok(());
     }
+
+    let new_events = get_updated_events(events, client, count).await;
+    if new_events.is_empty() {
+        return Ok(());
+    }
+
+    info!("broadcasting {} updated events", new_events.len());
+    client
+        .batch_event(new_events, RelaySendOptions::new())
+        .await?;
     Ok(())
 }
 
 async fn get_relevant_events(client: &Client, filters: &[Filter]) -> Result<Vec<Event>> {
-    let events = client
-        .get_events_of(filters.to_vec(), None)
-        .await?
-        .into_iter()
+    let events = client.get_events_of(filters.to_vec(), None).await?;
+
+    let mut events_by_naddr: HashMap<String, Event> = Default::default();
+    for event in events {
+        let naddr = get_naddr(&event).to_string();
+        if let Some(dup_event) = events_by_naddr.get_mut(&naddr) {
+            if event.created_at() > dup_event.created_at() {
+                *dup_event = event;
+            }
+        } else {
+            events_by_naddr.insert(naddr, event);
+        }
+    }
+
+    Ok(events_by_naddr
+        .into_values()
         .filter(|e| e.tags().iter().any(is_live_event_live))
-        .collect::<Vec<_>>();
-    Ok(events)
+        .collect())
 }
 
 fn is_live_event_live(t: &Tag) -> bool {
@@ -362,18 +372,13 @@ async fn get_updated_events(events: Vec<Event>, client: &Client, count: u64) -> 
 }
 
 async fn get_event_with_updated_count(event: &Event, client: &Client, count: u64) -> Result<Event> {
+    let naddr = get_naddr(event).to_bech32()?;
     let new_event = client
         .sign_event_builder(get_event_builder_with_updated_count(event, count))
         .await
-        .context(format!(
-            "cannot sign {}",
-            get_ellipsed(&event.id().to_bech32()?)
-        ))?;
+        .context(format!("cannot sign {naddr}"))?;
+    info!("updating {naddr}");
     Ok(new_event)
-}
-
-fn get_ellipsed(input: &str) -> String {
-    format!("{}...{}", &input[..6], &input[input.len() - 6..])
 }
 
 fn get_event_builder_with_updated_count(event: &Event, count: u64) -> EventBuilder {
@@ -385,4 +390,8 @@ fn get_event_builder_with_updated_count(event: &Event, count: u64) -> EventBuild
     tags.push(TagStandard::CurrentParticipants(count).into());
     let event_builder = EventBuilder::new(event.kind(), event.content(), tags);
     event_builder
+}
+
+fn get_naddr(event: &Event) -> Coordinate {
+    Coordinate::new(event.kind(), event.pubkey).identifier(event.identifier().unwrap_or_default())
 }
