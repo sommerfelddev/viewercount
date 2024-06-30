@@ -1,6 +1,6 @@
 [package]
 name = "viewercount"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["sommerfeld <sommerfeld@sommerfeld.dev>"]
 description = "Updates nostr Live Events with the number of HLS connections"
