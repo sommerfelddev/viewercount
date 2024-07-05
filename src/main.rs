@@ -74,7 +74,7 @@ struct ClientData {
 }
 
 impl ClientData {
-    async fn generate(use_nsecbunker: bool) -> Result<Self> {
+    async fn generate(use_nsecbunker: bool, nip46_timeout: Duration) -> Result<Self> {
         let keys = Keys::generate();
 
         let nip46_uri = match use_nsecbunker {
@@ -90,19 +90,20 @@ impl ClientData {
                     keys.public_key(),
                     [Url::parse("wss://relay.nsec.app")?],
                     env!("CARGO_PKG_NAME"),
-                )
-                .to_string();
-                println!(
-                    "Use your NIP46 signer app (e.g. Amber) to connect by using this URI:\n{uri}"
                 );
-                let code = QrCode::new(uri.clone()).unwrap();
+                let uri_str = uri.to_string();
+                println!(
+                    "Use your NIP46 signer app (e.g. Amber) to connect by using this URI:\n{uri_str}"
+                );
+                let code = QrCode::new(uri_str).unwrap();
                 let image = code
                     .render::<unicode::Dense1x2>()
                     .dark_color(unicode::Dense1x2::Light)
                     .light_color(unicode::Dense1x2::Dark)
                     .build();
                 println!("{}", image);
-                uri
+                let signer = Nip46Signer::new(uri, keys.clone(), nip46_timeout, None).await?;
+                signer.nostr_connect_uri().await.to_string()
             }
         };
 
@@ -209,20 +210,18 @@ async fn create_signer(
             .ok_or(anyhow!("Cannot convert path to string"))?;
         let _ = rename(path_str, format!("{}.bak", path_str));
     }
-    let client_data = get_or_generate_client_data(use_nsecbunker).await?;
+    let client_data = get_or_generate_client_data(use_nsecbunker, nip46_timeout).await?;
     let client_keys = Keys::parse(client_data.client_nsec)?;
     info!("setting up NIP46 signer");
-    let signer = Nip46Signer::new(
-        NostrConnectURI::parse(client_data.nip46_uri)?,
-        client_keys,
-        nip46_timeout,
-        None,
-    )
-    .await?;
+    let uri = NostrConnectURI::parse(client_data.nip46_uri)?;
+    let signer = Nip46Signer::new(uri, client_keys, nip46_timeout, None).await?;
     Ok(signer)
 }
 
-async fn get_or_generate_client_data(use_nsecbunker: bool) -> Result<ClientData> {
+async fn get_or_generate_client_data(
+    use_nsecbunker: bool,
+    nip46_timeout: Duration,
+) -> Result<ClientData> {
     let path = get_client_data_path();
     match File::open(&path) {
         Ok(file) => {
@@ -231,7 +230,7 @@ async fn get_or_generate_client_data(use_nsecbunker: bool) -> Result<ClientData>
                 .with_context(|| format!("cannot read client data from '{}'", path.display()))
         }
         Err(_) => {
-            let nostr_data = ClientData::generate(use_nsecbunker).await?;
+            let nostr_data = ClientData::generate(use_nsecbunker, nip46_timeout).await?;
             let mut file = File::create(&path)?;
             file.write_all(to_string(&nostr_data)?.as_bytes())
                 .with_context(|| format!("could not write client data to '{}'", path.display()))?;
