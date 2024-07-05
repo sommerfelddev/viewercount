@@ -26,6 +26,7 @@ use nostr_sdk::{
 use nostr_signer::{Nip46Signer, NostrSigner};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use procfs::net::TcpState;
+use qrcode::{render::unicode, QrCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_string};
 #[cfg(unix)]
@@ -94,6 +95,13 @@ impl ClientData {
                 println!(
                     "Use your NIP46 signer app (e.g. Amber) to connect by using this URI:\n{uri}"
                 );
+                let code = QrCode::new(uri.clone()).unwrap();
+                let image = code
+                    .render::<unicode::Dense1x2>()
+                    .dark_color(unicode::Dense1x2::Light)
+                    .light_color(unicode::Dense1x2::Dark)
+                    .build();
+                println!("{}", image);
                 uri
             }
         };

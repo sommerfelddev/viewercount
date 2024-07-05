@@ -20,6 +20,7 @@ nostr-relay-pool = "0.32.0"
 nostr-sdk = { version = "0.32.0", default-features = false }
 nostr-signer = { version = "0.32.1", default-features = false, features = ["nip46"] }
 pretty_env_logger = "0.5.0"
+qrcode = { version = "0.14.0", default-features = false }
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.118"
 tokio = { version = "1.38.0", features = ["rt-multi-thread", "signal", "time"] }

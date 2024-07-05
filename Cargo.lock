@@ -1135,6 +1135,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcode"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23e719ca51966ff9f5a8436edb00d6115b3c606a0bb27c8f8ca74a38ff2b036d"
+
+[[package]]
 name = "quote"
 version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1760,6 +1766,7 @@ dependencies = [
  "nostr-signer",
  "pretty_env_logger",
  "procfs",
+ "qrcode",
  "serde",
  "serde_json",
  "tokio",
