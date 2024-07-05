@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{remove_file, File},
+    fs::{rename, File},
     io::{stdin, BufReader, Write},
     net::IpAddr,
     path::PathBuf,
@@ -167,7 +167,11 @@ async fn setup_nostr_client(
 
 async fn create_signer(reset_nip46: bool, nip46_timeout: Duration) -> Result<Nip46Signer> {
     if reset_nip46 {
-        let _ = remove_file(get_client_data_path());
+        let path = get_client_data_path();
+        let path_str = path
+            .to_str()
+            .ok_or(anyhow!("Cannot convert path to string"))?;
+        let _ = rename(path_str, format!("{}.bak", path_str));
     }
     let client_data = get_or_generate_client_data().await?;
     let client_keys = Keys::parse(client_data.client_nsec)?;
