@@ -21,7 +21,7 @@ use nostr_sdk::{
         nip53::LiveEventStatus,
         nip65::{self, RelayMetadata},
     },
-    Client, Event, EventBuilder, Filter, Keys, Kind, Tag, TagKind, TagStandard, ToBech32,
+    Client, Event, EventBuilder, Filter, Keys, Kind, Tag, TagKind, TagStandard, ToBech32, Url,
 };
 use nostr_signer::{Nip46Signer, NostrSigner};
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -57,6 +57,10 @@ struct Args {
     /// remove previously cached NIP46 signer credentials and ask for new ones
     #[arg(long)]
     reset_nip46: bool,
+    /// use an externally provided nsecbunker URI instead of generating a nostrconnectURI by
+    ///  default
+    #[arg(long)]
+    use_nsecbunker: bool,
     /// specific naddrs of Live Events to update, if none, all user authored Live Events that are
     /// 'live' will be updated
     naddrs: Vec<String>,
@@ -69,12 +73,30 @@ struct ClientData {
 }
 
 impl ClientData {
-    async fn generate() -> Result<Self> {
+    async fn generate(use_nsecbunker: bool) -> Result<Self> {
         let keys = Keys::generate();
-        println!("Paste NSECBUNKER URI (this only needs to be done once):");
-        let mut line = String::new();
-        stdin().read_line(&mut line)?;
-        let nip46_uri = line.trim_end().to_string();
+
+        let nip46_uri = match use_nsecbunker {
+            true => {
+                println!("Paste NSECBUNKER URI (this only needs to be done once):");
+                let mut line = String::new();
+                stdin().read_line(&mut line)?;
+                line.trim_end().to_string()
+            }
+
+            false => {
+                let uri = NostrConnectURI::client(
+                    keys.public_key(),
+                    [Url::parse("wss://relay.nsec.app")?],
+                    env!("CARGO_PKG_NAME"),
+                )
+                .to_string();
+                println!(
+                    "Use your NIP46 signer app (e.g. Amber) to connect by using this URI:\n{uri}"
+                );
+                uri
+            }
+        };
 
         Ok(ClientData {
             client_nsec: keys.secret_key()?.to_bech32()?,
@@ -99,6 +121,7 @@ async fn do_main() -> Result<()> {
 
     let client = setup_nostr_client(
         args.reset_nip46,
+        args.use_nsecbunker,
         Duration::from_secs(NIP46_TIMEOUT_SEC),
         ZAP_STREAM_RELAYS,
     )
@@ -151,10 +174,11 @@ fn set_signal_handlers() -> Result<()> {
 
 async fn setup_nostr_client(
     reset_nip46: bool,
+    use_nsecbunker: bool,
     nip46_timeout: Duration,
     client_relays: &[&str],
 ) -> Result<Client> {
-    let signer = create_signer(reset_nip46, nip46_timeout).await?;
+    let signer = create_signer(reset_nip46, use_nsecbunker, nip46_timeout).await?;
     let signer_pubkey = signer.signer_public_key();
     let client = Client::new(NostrSigner::from(signer));
 
@@ -165,7 +189,11 @@ async fn setup_nostr_client(
     Ok(client)
 }
 
-async fn create_signer(reset_nip46: bool, nip46_timeout: Duration) -> Result<Nip46Signer> {
+async fn create_signer(
+    reset_nip46: bool,
+    use_nsecbunker: bool,
+    nip46_timeout: Duration,
+) -> Result<Nip46Signer> {
     if reset_nip46 {
         let path = get_client_data_path();
         let path_str = path
@@ -173,7 +201,7 @@ async fn create_signer(reset_nip46: bool, nip46_timeout: Duration) -> Result<Nip
             .ok_or(anyhow!("Cannot convert path to string"))?;
         let _ = rename(path_str, format!("{}.bak", path_str));
     }
-    let client_data = get_or_generate_client_data().await?;
+    let client_data = get_or_generate_client_data(use_nsecbunker).await?;
     let client_keys = Keys::parse(client_data.client_nsec)?;
     info!("setting up NIP46 signer");
     let signer = Nip46Signer::new(
@@ -186,7 +214,7 @@ async fn create_signer(reset_nip46: bool, nip46_timeout: Duration) -> Result<Nip
     Ok(signer)
 }
 
-async fn get_or_generate_client_data() -> Result<ClientData> {
+async fn get_or_generate_client_data(use_nsecbunker: bool) -> Result<ClientData> {
     let path = get_client_data_path();
     match File::open(&path) {
         Ok(file) => {
@@ -195,7 +223,7 @@ async fn get_or_generate_client_data() -> Result<ClientData> {
                 .with_context(|| format!("cannot read client data from '{}'", path.display()))
         }
         Err(_) => {
-            let nostr_data = ClientData::generate().await?;
+            let nostr_data = ClientData::generate(use_nsecbunker).await?;
             let mut file = File::create(&path)?;
             file.write_all(to_string(&nostr_data)?.as_bytes())
                 .with_context(|| format!("could not write client data to '{}'", path.display()))?;

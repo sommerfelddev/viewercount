@@ -50,15 +50,20 @@ Arguments:
 Options:
   -i, --interval <INTERVAL>  watch interval in seconds [default: 60]
       --reset-nip46          remove previously cached NIP46 signer credentials and ask for new ones
+      --use-nsecbunker       use an externally provided nsecbunker URI instead of generating a nostrconnectURI by default
   -h, --help                 Print help
   -V, --version              Print version
 ```
 
-You can just run it without any arguments. It will ask for a [NIP46 nsecbunker
-URI](https://github.com/nostr-protocol/nips/blob/master/46.md) which you can
-easily obtain if using [Amber](https://github.com/greenart7c3/Amber),
+You can just run it without any arguments. It will provide you with a in-client
+auto generated
+[NIP46 nostrconnect URI](https://github.com/nostr-protocol/nips/blob/master/46.md)
+which you can use to login remotely using [Amber](https://github.com/greenart7c3/Amber),
 [Keystache](https://github.com/Resolvr-io/Keystache),
-[nsec.app](https://nsec.app/) or [nsecbunker.com](https://nsecbunker.com/).
+[nsec.app](https://nsec.app/) or [nsecbunker.com](https://nsecbunker.com/). If
+the app does not have good support for generated `nostrconnect://` URIs, you can
+pass `--use-nsecbunker` and paste a nsecbunker URI instead of scanning a QR
+code.
 
 You just need to copy paste the URI on the first run, and it will then use your
 [NIP65 outbox relays](https://github.com/nostr-protocol/nips/blob/master/65.md)
