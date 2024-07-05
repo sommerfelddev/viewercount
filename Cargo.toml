@@ -18,7 +18,7 @@ human-panic = "2.0.0"
 log = "0.4.21"
 nostr-relay-pool = "0.32.0"
 nostr-sdk = { version = "0.32.0", default-features = false }
-nostr-signer = { version = "0.32.0", default-features = false, features = ["nip46"] }
+nostr-signer = { version = "0.32.1", default-features = false, features = ["nip46"] }
 pretty_env_logger = "0.5.0"
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.118"

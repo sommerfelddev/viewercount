@@ -966,9 +966,9 @@ dependencies = [
 
 [[package]]
 name = "nostr-signer"
-version = "0.32.0"
+version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "525574dc32fa07d64d04a6c72b534d97455b1ad954c29753c820c834c94e3704"
+checksum = "f99449c2077bef43c02c8f9a9386d01c87e7ad8ece70d7de87a2c59771b4c0fe"
 dependencies = [
  "async-utility",
  "nostr",
